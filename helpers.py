@@ -1,3 +1,4 @@
+from matplotlib.pyplot import axes
 from manimlib import *
 import numpy as np
 
@@ -18,11 +19,11 @@ class TrigVisualization(VMobject):
         angle = angle % TAU
         current_arc = Arc(0, angle=angle, radius=RADIUS, arc_center=ORIGIN).set_color(ORANGE)
         current_point = Dot().move_to(current_arc.get_end()).set_color(YELLOW)
-        cos_indicator = Line(
+        self.cos_indicator = Line(
                 start=(0,current_arc.get_end()[1],current_arc.get_end()[2]),
                 end=current_arc.get_end(),
                 ).set_color(RED)
-        sin_indicator = Line(
+        self.sin_indicator = Line(
                 start=(current_arc.get_end()[0],0,current_arc.get_end()[2]),
                 end=current_arc.get_end(),
                 ).set_color(BLUE)
@@ -52,7 +53,7 @@ class TrigVisualization(VMobject):
                 )
         circle_visualizer.add(
                 base_axes,base_circle,
-                cos_indicator, sin_indicator,
+                self.cos_indicator, self.sin_indicator,
                 pos_indicator,
         ).to_edge()
         return circle_visualizer
@@ -62,6 +63,11 @@ class TrigVisualization(VMobject):
         self.circle_visualizer = self.gen_shape(newAngle)
         self.add(self.circle_visualizer)
 
+    def get_cos_line(self):
+        return self.cos_indicator
+
+    def get_sin_line(self):
+        return self.sin_indicator
 
 
 class Test(InteractiveScene):
@@ -91,19 +97,74 @@ class Test(InteractiveScene):
                 )
 
         # start of axes
-        trig_axes = Axes(
+        cos_axes = Axes(
                 x_range=(-PI/4, 2*PI, PI/4),
                 y_range=(-1.5, 1.5, 1),
-                ).to_edge(RIGHT)
+                ).to_edge(UR)
+        sin_axes = Axes(
+                x_range=(-PI/4, 2*PI, PI/4),
+                y_range=(-1.5, 1.5, 1),
+                ).to_edge(DR)
 
-        cos_graph = always_redraw(lambda: trig_axes.get_graph(
+
+        cos_group = VGroup()
+        cos_graph = always_redraw(lambda: cos_axes.get_graph(
                 lambda t: np.cos(t + START_ANGLE), color=RED, x_range=(0, self.tracker.get_value() - START_ANGLE)
                 ))
-        sin_graph = always_redraw(lambda: trig_axes.get_graph(
+        cos_group.add(cos_graph)
+
+        cos_circle_link_to_time_axes_start = always_redraw(
+                lambda :Line(
+                    start=(cos_axes.c2p(self.tracker.get_value()-START_ANGLE, 0, 0)),
+                    end=obj.get_cos_line().get_start(),
+                    stroke_width=.4,
+                    ).set_color(RED)
+                )
+        cos_circle_link_to_time_axes_end = always_redraw(
+                lambda :Line(
+                    start=(cos_axes.c2p(self.tracker.get_value()-START_ANGLE, np.cos(self.tracker.get_value()), 0)),
+                    end=obj.get_cos_line().get_end(),
+                    stroke_width=.4,
+                    ).set_color(RED)
+                )
+        cos_veritical_indicator = always_redraw(
+                lambda: Line(
+                    start=cos_circle_link_to_time_axes_start.get_start(),
+                    end=cos_circle_link_to_time_axes_end.get_start(),
+                    ).set_color(RED)
+                )
+        cos_group.add(cos_circle_link_to_time_axes_start)
+        cos_group.add(cos_circle_link_to_time_axes_end)
+        cos_group.add(cos_veritical_indicator)
+
+        sin_graph = always_redraw(lambda: sin_axes.get_graph(
                 lambda t: np.sin(t + START_ANGLE), color=BLUE, x_range=(0, self.tracker.get_value() - START_ANGLE)
                 ))
-        self.add(trig_axes,cos_graph, sin_graph)
-        # end of axes
+
+
+        sin_group = VGroup()
+        sin_circle_link_to_time_axes_start = always_redraw(
+                lambda :Line(
+                    start=(sin_axes.c2p(self.tracker.get_value()-START_ANGLE, 0, 0)),
+                    end=obj.get_sin_line().get_start(),
+                    stroke_width=.4,
+                    ).set_color(BLUE)
+                )
+        sin_circle_link_to_time_axes_end = always_redraw(
+                lambda :Line(
+                    start=(sin_axes.c2p(self.tracker.get_value()-START_ANGLE, np.sin(self.tracker.get_value()), 0)),
+                    end=obj.get_sin_line().get_end(),
+                    stroke_width=.4,
+                    ).set_color(BLUE)
+                )
+        sin_veritical_indicator = always_redraw(
+                lambda: Line(
+                    start=sin_circle_link_to_time_axes_start.get_start(),
+                    end=sin_circle_link_to_time_axes_end.get_start(),
+                    ).set_color(BLUE)
+                )
+        sin_group.add(sin_circle_link_to_time_axes_start, sin_circle_link_to_time_axes_end, sin_veritical_indicator)
+        self.add(cos_axes, sin_axes, sin_graph, cos_group, sin_group)
 
         self.add(obj)
 
