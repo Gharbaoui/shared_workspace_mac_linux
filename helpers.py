@@ -1,3 +1,5 @@
+from numbers import Number
+from OpenGL.GL.ARB import vertex_attrib_64bit
 from matplotlib.pyplot import axes
 from manimlib import *
 import numpy as np
@@ -70,7 +72,7 @@ class TrigVisualization(VMobject):
         return self.sin_indicator
 
 
-class Test(InteractiveScene):
+class TrigInteraction(InteractiveScene):
     def construct(self):
         self.clear()
 
@@ -176,4 +178,91 @@ class Test(InteractiveScene):
         if chr(symbol) == ' ':
             self.keys_held.clear()
 
+        return super().on_key_press(symbol, modifiers)
+
+
+
+
+class ClockVisuilizer(VMobject):
+    def __init__(self,
+                 on_dff_rising,
+                 on_dff_falling,
+                 on_rising,
+                 on_falling,
+                 scene,
+                 **kwargs):
+        super().__init__(**kwargs)
+
+        self.axes = Axes(
+                x_range=(-1, 11, 1),
+                y_range=(0, 2, 1),
+                )
+
+        self.scene = scene
+        self.on_rising = on_rising
+        self.on_falling = on_falling
+        self.on_dff_rising = on_dff_rising
+        self.on_dff_falling = on_dff_falling
+        self.clock_segments = VGroup()
+        self.last_t_pos = 0
+        self.last_time_was_high = True
+        self.tick_size = 1
+        self.high_value = 1
+        self.low_value = 0.1
+
+        self.add(self.axes,)
+
+    def add_half_period(self):
+        xvert = self.last_t_pos
+        self.last_t_pos += self.tick_size
+        yvert0 = self.high_value if self.last_time_was_high else self.low_value
+        yvert1 = self.high_value if not self.last_time_was_high else self.low_value
+        vertLine = Line(
+                start=self.axes.c2p(xvert, yvert0),
+                end=self.axes.c2p(xvert, yvert1),
+                ).set_color(BLUE if yvert1 == self.high_value else RED)
+        horLine = Line(
+                start=self.axes.c2p(xvert, yvert1),
+                end=self.axes.c2p(self.last_t_pos, yvert1),
+                )
+
+        self.last_time_was_high = not self.last_time_was_high
+
+        self.clock_segments.add(vertLine, horLine)
+
+        self.scene.play(ShowCreation(vertLine), run_time=.3, rate_func=linear)
+        if self.last_time_was_high:
+            self.on_rising()
+        else:
+            self.on_falling()
+        self.scene.play(ShowCreation(horLine), run_time=.3, rate_func=linear)
+        if self.last_time_was_high:
+            self.on_dff_rising()
+        else:
+            self.on_dff_falling()
+
+
+    def add_one_period(self):
+        self.add_half_period()
+        self.add_half_period()
+
+class Test(InteractiveScene):
+    def construct(self) -> None:
+        self.play()
+
+        self.t = ClockVisuilizer(
+                on_falling=lambda: print('falling'),
+                on_rising=lambda: print('rising'),
+                on_dff_falling=lambda: print('falling dff'),
+                on_dff_rising=lambda: print('rising dff'),
+                scene=self,
+                )
+
+        self.add(self.t)
+
+    def on_key_press(self, symbol: int, modifiers: int) -> None:
+        if chr(symbol) == 'w':
+            self.t.add_half_period()
+        if chr(symbol) == ' ':
+            self.t.add_one_period()
         return super().on_key_press(symbol, modifiers)
