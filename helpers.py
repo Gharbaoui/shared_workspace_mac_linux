@@ -194,7 +194,7 @@ class ClockVisuilizer(VMobject):
         super().__init__(**kwargs)
 
         self.axes = Axes(
-                x_range=(-1, 11, 1),
+                x_range=(-1, 30, 1),
                 y_range=(0, 2, 1),
                 )
 
@@ -205,7 +205,7 @@ class ClockVisuilizer(VMobject):
         self.on_dff_falling = on_dff_falling
         self.clock_segments = VGroup()
         self.last_t_pos = 0
-        self.last_time_was_high = True
+        self.last_time_was_high = False
         self.tick_size = 1
         self.high_value = 1
         self.low_value = 0.1
@@ -248,17 +248,19 @@ class ClockVisuilizer(VMobject):
 
 class Test(InteractiveScene):
     def construct(self) -> None:
-        self.play()
+        counter = ValueTracker(0)
+        limit = 2
+        counter_text = always_redraw(lambda: Text(f'cnt: {counter.get_value()}').to_edge(UP))
 
         self.t = ClockVisuilizer(
                 on_falling=lambda: print('falling'),
                 on_rising=lambda: print('rising'),
                 on_dff_falling=lambda: print('falling dff'),
-                on_dff_rising=lambda: print('rising dff'),
+                on_dff_rising=lambda: counter.set_value(counter.get_value() + 1 if counter.get_value() != limit else 0),
                 scene=self,
                 )
 
-        self.add(self.t)
+        self.add(self.t, counter_text)
 
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         if chr(symbol) == 'w':
