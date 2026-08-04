@@ -232,41 +232,180 @@ class Lecture12(InteractiveScene):
         axes.toggle_planes()
         self.add(axes)
 
-        def eq(x, y, z):
-            return 3 *x + y**2 - z**3
-        def px(x, y, z):
-            return 3
-        def py(x, y, z):
-            return 2 * y
-        def pz(x, y, z):
-            return -3 * z**2
+        # def eq(x, y, z):
+        #     return 3 *x + y**2 - z**3
+        # def px(x, y, z):
+        #     return 3
+        # def py(x, y, z):
+        #     return 2 * y
+        # def pz(x, y, z):
+        #     return -3 * z**2
 
-        def random_point_on_surface(level, bli=(-10,-10,-10), tro=(10,10,10)):
-            x = random.uniform(bli[0], tro[0])
-            y = random.uniform(bli[1], tro[1])
-            z = np.cbrt(3*x + y**2) #depending on the function 
-            return (x, y, z)
+        # def random_point_on_surface(level, bli=(-10,-10,-10), tro=(10,10,10)):
+        #     x = random.uniform(bli[0], tro[0])
+        #     y = random.uniform(bli[1], tro[1])
+        #     z = np.cbrt(3*x + y**2) #depending on the function 
+        #     return (x, y, z)
 
-        mesh = axes.render_level_surface(eq, 10).set_color(TEAL).set_opacity(.4)
-        self.add(mesh)
+        # mesh = axes.render_level_surface(eq, 10).set_color(TEAL).set_opacity(.4)
+        # self.add(mesh)
 
-        def gen_gradient(level):
-            head = random_point_on_surface(level)
-            delvec = np.array([px(*head), py(*head), pz(*head)])
-            return head, delvec
-
-
+        # def gen_gradient(level):
+        #     head = random_point_on_surface(level)
+        #     delvec = np.array([px(*head), py(*head), pz(*head)])
+        #     return head, delvec
 
 
-        head, delvec = gen_gradient(10)
-        p1dot = Dot().set_color(PURPLE).scale(.5).move_to(axes.c2p(*head))
-        p1vev = Simple3DVec(
-            axes,
-            head,
-            np.array(head)+delvec,
-        ).set_color(PURPLE)
-        self.add(p1dot, p1vev)
 
 
+        # head, delvec = gen_gradient(10)
+        # p1dot = Dot().set_color(PURPLE).scale(.5).move_to(axes.c2p(*head))
+        # p1vev = Simple3DVec(
+        #     axes,
+        #     head,
+        #     np.array(head)+delvec,
+        # ).set_color(PURPLE)
+        # self.add(p1dot, p1vev)
+
+
+        # def eq(x, y):
+        #     return 4 - x**2 - y**2
+
+        # def gradient_at(x, y, _):
+        #     return np.array([-2*x, -2*y, 0])
+
+        # s = axes.get_parametric_surface(
+        #     lambda x, y: [x, y, eq(x, y)],
+        #     u_range=(-2, 2),
+        #     v_range=(-2, 2),
+        #     color=TEAL,
+        #     opacity=.4,
+        # )
+        # self.add(s)
+
+        # sample_at = ValueTracker(np.array([-2, 2, 0]))
+
+        # dir_vec_val = ValueTracker(np.array([3, 2, 0]))
+        # dir_vec_start_post = sample_at
+
+
+        # def get_end_position(start, end):
+        #     vec = end - start
+        #     magnitude = np.linalg.norm(vec)
+        #     return start + vec/magnitude
+
+        # dir_vec = always_redraw(
+        #     lambda: Simple3DVec(
+        #         axes,
+        #         start=dir_vec_start_post.get_value(),
+        #         end=get_end_position(dir_vec_start_post.get_value() ,dir_vec_val.get_value()),
+        #         color=RED,
+        #     )
+        # )
+
+
+        # def get_dir_curve():
+        #     dirx, diry, _ = get_end_position(dir_vec_start_post.get_value() ,dir_vec_val.get_value())
+        #     passx, passy, _ = dir_vec_start_post.get_value()
+        #     return axes.get_parametric_curve(
+        #         lambda t: [passx + dirx * t, passy + diry * t, eq(passx + dirx * t, passy + diry * t)],
+        #         t_range=(-2, 2, 0.1),
+        #         color=ORANGE,
+        #     )
+
+
+        # dir_curve = always_redraw(
+        #     lambda: get_dir_curve(),
+        # )
+
+        # gradient_vec = always_redraw(
+        #     lambda: Simple3DVec(
+        #         axes,
+        #         start=sample_at.get_value(),
+        #         end=sample_at.get_value() + gradient_at(*sample_at.get_value()),
+        #         color=GREEN,
+        #     )
+        # )
+
+
+        # self.add(dir_vec, gradient_vec, dir_curve)
+        def eq(x, y):
+            return 4 - x**2 - y**2
+
+
+        def gradient_at(x, y, _):
+            return np.array([-2 * x, -2 * y, 0])
+
+
+        s = axes.get_parametric_surface(
+            lambda x, y: [x, y, eq(x, y)],
+            u_range=(-2, 2),
+            v_range=(-2, 2),
+            color=TEAL,
+            opacity=0.4,
+        )
+        self.add(s)
+
+
+        # Point on the surface (xy coordinates)
+        sample_at = ValueTracker(np.array([-2, 2, 0]))
+
+        # Direction vector (NOT an endpoint)
+        dir_vec_val = ValueTracker(np.array([3, 2, 0]))
+
+
+        def get_unit_direction():
+            d = dir_vec_val.get_value().copy()
+            d[2] = 0
+
+            norm = np.linalg.norm(d)
+            if norm == 0:
+                return np.array([1, 0, 0])
+
+            return d / norm
+
+
+        dir_vec = always_redraw(
+            lambda: Simple3DVec(
+                axes,
+                start=sample_at.get_value(),
+                end=sample_at.get_value() + get_unit_direction(),
+                color=RED,
+            )
+        )
+
+
+        def get_dir_curve():
+            px, py, _ = sample_at.get_value()
+            dx, dy, _ = get_unit_direction()
+
+            return axes.get_parametric_curve(
+                lambda t: [
+                    px + dx * t,
+                    py + dy * t,
+                    eq(px + dx * t, py + dy * t),
+                ],
+                t_range=(-2, 2, 0.05),
+                color=ORANGE,
+            )
+
+
+        dir_curve = always_redraw(get_dir_curve)
+
+
+        marker = always_redraw(
+            lambda: Dot().set_color(RED).move_to(axes.c2p(sample_at.get_value()[0], sample_at.get_value()[1], eq(sample_at.get_value()[0], sample_at.get_value()[1])))
+        )
+        gradient_vec = always_redraw(
+            lambda: Simple3DVec(
+                axes,
+                start=sample_at.get_value(),
+                end=sample_at.get_value() + gradient_at(*sample_at.get_value()),
+                color=GREEN,
+            )
+        )
+
+
+        self.add(dir_vec, gradient_vec, dir_curve, marker)
 
         self.embed()
