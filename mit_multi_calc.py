@@ -3,7 +3,7 @@ import random
 import numpy as np
 import mcubes
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from marching import get_contour_lines, circle_eq
+from marching import get_contour_lines, circle_eq, gas_leek_eq
 
 class Simple3DVec(VMobject):
     def __init__(
@@ -19,7 +19,7 @@ class Simple3DVec(VMobject):
         self.start = start
         self.end = end
         self.l = Line(
-            axes.c2p(*start), axes.c2p(*end), buff, path_arc, **kwargs
+            axes.c2p(*start), axes.c2p(*(start + end)), buff, path_arc, **kwargs
             )
 
         self.add(self.l)
@@ -28,7 +28,7 @@ class Simple3DVec(VMobject):
         if 'color' in kwargs:
             self.color = kwargs['color']
 
-        self.tip = Dot().move_to(axes.c2p(*end)).set_color(self.color)
+        self.tip = Dot().move_to(axes.c2p(*(start+end))).set_color(self.color)
         self.vec = VGroup(self.l, self.tip)
         self.add(self.vec)
 
@@ -348,7 +348,7 @@ class Lecture12(InteractiveScene):
 
 
         # Point on the surface (xy coordinates)
-        sample_at = ValueTracker(np.array([-2, 2, 0]))
+        sample_at = ValueTracker(np.array([1, 2, 0]))
 
         # Direction vector (NOT an endpoint)
         dir_vec_val = ValueTracker(np.array([3, 2, 0]))
@@ -369,7 +369,7 @@ class Lecture12(InteractiveScene):
             lambda: Simple3DVec(
                 axes,
                 start=sample_at.get_value(),
-                end=sample_at.get_value() + get_unit_direction(),
+                end=get_unit_direction(),
                 color=RED,
             )
         )
@@ -394,18 +394,83 @@ class Lecture12(InteractiveScene):
 
 
         marker = always_redraw(
-            lambda: Dot().set_color(RED).move_to(axes.c2p(sample_at.get_value()[0], sample_at.get_value()[1], eq(sample_at.get_value()[0], sample_at.get_value()[1])))
+            lambda: VGroup(
+                Dot().set_color(RED).move_to(axes.c2p(sample_at.get_value()[0], sample_at.get_value()[1], eq(sample_at.get_value()[0], sample_at.get_value()[1]))),
+                Line(start=axes.c2p(sample_at.get_value()[0], sample_at.get_value()[1], 0),
+                     end=axes.c2p(sample_at.get_value()[0], sample_at.get_value()[1], eq(sample_at.get_value()[0], sample_at.get_value()[1])),
+                     color=RED,
+                     ),
+                )
         )
         gradient_vec = always_redraw(
             lambda: Simple3DVec(
                 axes,
                 start=sample_at.get_value(),
-                end=sample_at.get_value() + gradient_at(*sample_at.get_value()),
+                end=gradient_at(*sample_at.get_value()),
                 color=GREEN,
             )
         )
 
 
         self.add(dir_vec, gradient_vec, dir_curve, marker)
+
+        self.embed()
+
+
+class GasLeak(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+
+        def gradient_eq(x, y):
+            return np.array([-x, 2*y, 0])
+
+        s = axes.get_parametric_surface(
+            lambda x, y: [x, y, gas_leek_eq(x, y)],
+            u_range=(-4, 4),
+            v_range=(-4, 4),
+            color=BLUE,
+            opacity=.4,
+        )
+
+        self.add(s)
+        engineer_initil_pos = (3, 2)
+        con_at_engineer_feet = gas_leek_eq(*engineer_initil_pos)
+        engineer = Dot().move_to(axes.c2p(*engineer_initil_pos, con_at_engineer_feet))
+        self.add(engineer)
+
+
+        def draw_gradient_at(x, y):
+            return Simple3DVec(
+                axes,
+                start=np.array([x, y, con_at_engineer_feet]),
+                end=gradient_eq(x, y) + np.array([0, 0, 0]),
+                color=GREEN,
+            )
+
+        gvec = draw_gradient_at(*engineer_initil_pos)
+        self.add(gvec)
+        level_contour = axes.render_contour((-6, 6), (-6, 6), con_at_engineer_feet, gas_leek_eq, 0.01)
+        self.add(level_contour)
+
 
         self.embed()
