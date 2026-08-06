@@ -128,6 +128,6 @@ def get_contour_lines(x_range, y_range, step, level, eq):
 def circle_eq(x, y):
     return x**2 + y
 
-SHIFT_UP_BY = 10
+GAS_LEEK_SHIFT_UP_BY = 10
 def gas_leek_eq(x, y):
-    return SHIFT_UP_BY - .5 * x**2 - y**2
+    return GAS_LEEK_SHIFT_UP_BY - .5 * x**2 - y**2

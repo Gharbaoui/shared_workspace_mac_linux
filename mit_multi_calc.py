@@ -3,7 +3,7 @@ import random
 import numpy as np
 import mcubes
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from marching import get_contour_lines, circle_eq, gas_leek_eq
+from marching import get_contour_lines, circle_eq, gas_leek_eq, GAS_LEEK_SHIFT_UP_BY
 
 class Simple3DVec(VMobject):
     def __init__(
@@ -442,7 +442,7 @@ class GasLeak(InteractiveScene):
         self.add(axes)
 
         def gradient_eq(x, y):
-            return np.array([-x, 2*y, 0])
+            return np.array([-x, -2*y, 0])
 
         s = axes.get_parametric_surface(
             lambda x, y: [x, y, gas_leek_eq(x, y)],
@@ -453,7 +453,7 @@ class GasLeak(InteractiveScene):
         )
 
         self.add(s)
-        engineer_initil_pos = (3, 2)
+        engineer_initil_pos = np.array([3, 2])
         con_at_engineer_feet = gas_leek_eq(*engineer_initil_pos)
         engineer = Dot().move_to(axes.c2p(*engineer_initil_pos, con_at_engineer_feet))
         self.add(engineer)
@@ -471,6 +471,54 @@ class GasLeak(InteractiveScene):
         self.add(gvec)
         level_contour = axes.render_contour((-6, 6), (-6, 6), con_at_engineer_feet, gas_leek_eq, 0.01)
         self.add(level_contour)
+
+
+        def counter_level_traversal_eq(t, l):
+            return np.array([np.sqrt(2 * (GAS_LEEK_SHIFT_UP_BY - l)) * np.cos(t), np.sqrt(GAS_LEEK_SHIFT_UP_BY - l) * np.sin(t), l])
+
+        start_t = np.arccos(engineer_initil_pos[0]/np.sqrt(2 * (GAS_LEEK_SHIFT_UP_BY - con_at_engineer_feet)))
+        end_t = start_t + TAU
+        c = axes.get_parametric_curve(
+            lambda t: counter_level_traversal_eq(t, con_at_engineer_feet),
+            t_range=(start_t, end_t, 0.05),
+            color=RED,
+        )
+
+        def get_traversal_vec(x, y):
+            t = np.arccos(x/np.sqrt(2 * (GAS_LEEK_SHIFT_UP_BY - con_at_engineer_feet)))
+            dr = np.array([-np.sqrt(2 * (GAS_LEEK_SHIFT_UP_BY - con_at_engineer_feet)) * np.sin(t), np.sqrt(GAS_LEEK_SHIFT_UP_BY - con_at_engineer_feet) * np.cos(t), 0])
+            v = Simple3DVec(
+                axes,
+                np.array([*engineer_initil_pos, con_at_engineer_feet]),
+                dr,
+            )
+            return v
+
+        movement_vector = get_traversal_vec(*engineer_initil_pos)
+        self.add(movement_vector)
+        self.play(ShowCreation(c), run_time=3, rate_func=linear)
+
+        def get_direction_vector_at(x, y, dx, dy, color=ORANGE):
+            level = gas_leek_eq(x, y)
+            start = np.array([x, y, level])
+            end = np.array([dx, dy, 0])
+            return Simple3DVec(
+                axes,
+                start,
+                end/np.linalg.norm(end),
+                color=color,
+            )
+
+        direction_vector_value = ValueTracker(np.array([-3, -4]))
+        direction_vector = always_redraw(lambda: get_direction_vector_at(*engineer_initil_pos, *direction_vector_value.get_value()))
+        curve_along_direction = always_redraw(
+            lambda: axes.get_parametric_curve(
+                lambda t: [*((t * direction_vector_value.get_value()) + engineer_initil_pos), gas_leek_eq(*((t * direction_vector_value.get_value()) + engineer_initil_pos))],
+                t_range=(-4, 4, 0.05),
+                color=ORANGE,
+            )
+        )
+        self.add(direction_vector, curve_along_direction)
 
 
         self.embed()
