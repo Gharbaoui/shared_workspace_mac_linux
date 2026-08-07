@@ -131,3 +131,8 @@ def circle_eq(x, y):
 GAS_LEEK_SHIFT_UP_BY = 10
 def gas_leek_eq(x, y):
     return GAS_LEEK_SHIFT_UP_BY - .5 * x**2 - y**2
+
+METAL_SHIFT_UP_BY = 4
+METAL_STRETCH = 1 
+def heated_metal_plate_eq(x, y):
+    return METAL_SHIFT_UP_BY + METAL_STRETCH * x*y - METAL_STRETCH * x**2

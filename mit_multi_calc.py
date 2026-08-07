@@ -3,7 +3,7 @@ import random
 import numpy as np
 import mcubes
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from marching import get_contour_lines, circle_eq, gas_leek_eq, GAS_LEEK_SHIFT_UP_BY
+from marching import get_contour_lines, circle_eq, gas_leek_eq, GAS_LEEK_SHIFT_UP_BY, heated_metal_plate_eq, METAL_SHIFT_UP_BY, METAL_STRETCH
 
 class Simple3DVec(VMobject):
     def __init__(
@@ -520,5 +520,100 @@ class GasLeak(InteractiveScene):
         )
         self.add(direction_vector, curve_along_direction)
 
+
+        self.embed()
+
+class HeatedMetalPlate(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+
+        def gradient_eq(x, y):
+            return np.array([y - METAL_STRETCH*2*x, x, 0])
+
+        ## trying to understand surface xy - x**2
+        # def zx_eq(x, y):
+        #     return METAL_SHIFT_UP_BY + x * y - METAL_STRETCH * x**2
+
+        def get_zx_graph(y, color=ORANGE):
+            return axes.get_parametric_curve(
+                lambda x: [x, y, heated_metal_plate_eq(x, y)],
+                t_range=(-4+y, 2+4, 0.05),
+                color=color,
+            )
+
+        s = axes.get_parametric_surface(
+            lambda x, y: [x, y, heated_metal_plate_eq(x, y)],
+            u_range=(-5, 5),
+            v_range=(-5, 5),
+            color=TEAL,
+            opacity=.3,
+        )
+        self.add(s)
+
+        zxs = [get_zx_graph(y * .5) for y in range(-10, 10)]
+        self.add(*zxs)
+        self.frame.reorient(0.0, 90.0, 0.0, (0, 0, 0))
+
+        target_point = np.array([2, 3])
+        target_pos = np.array([*target_point, heated_metal_plate_eq(*target_point)])
+
+
+        contour = axes.render_contour((-5, 5), (-5, 5), target_pos[-1], heated_metal_plate_eq, step=0.05)
+        self.add(contour)
+
+        marker = Dot().scale(.5).set_color(GREEN).move_to(axes.c2p(*target_pos))
+        self.add(marker)
+
+
+        def get_gradient_vec(x, y, z):
+            direction = gradient_eq(x, y)
+            return Simple3DVec(
+                axes,
+                start=np.array([x, y, z]),
+                end=direction,
+                color=RED,
+            ), Simple3DVec(
+                axes,
+                start=np.array([x, y, z]),
+                end=direction/np.linalg.norm(direction),
+                color=MAROON,
+            ), Simple3DVec(
+                axes,
+                start=np.array([x, y, z]),
+                end=-direction/np.linalg.norm(-direction),
+                color=PURPLE,
+            )
+        gvec, hottest, coolest = get_gradient_vec(*target_pos)
+        self.add(gvec, hottest, coolest)
+
+        direction = gradient_eq(*target_point)
+        direction = direction/np.linalg.norm(direction)
+        nochange_dir = Simple3DVec(
+            axes,
+            start=target_pos,
+            end=np.array([direction[1], -direction[0], direction[2]]),
+            color=PINK,
+        )
+        self.add(nochange_dir)
 
         self.embed()
