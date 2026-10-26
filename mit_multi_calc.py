@@ -3,7 +3,7 @@ import random
 import numpy as np
 import mcubes
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from marching import get_contour_lines, circle_eq, gas_leek_eq, GAS_LEEK_SHIFT_UP_BY, heated_metal_plate_eq, METAL_SHIFT_UP_BY, METAL_STRETCH
+from marching import get_contour_lines, circle_eq, gas_leek_eq, GAS_LEEK_SHIFT_UP_BY, heated_metal_plate_eq, METAL_SHIFT_UP_BY, METAL_STRETCH,heated_metal_plate_gradient_eq, review_dir_vec_eq, electric_potential_eq, ELECTRIC_FIELD_AT_0, submaric_lagrange_eq, lec14_eq, safest_point_eq, expr_eq, expr_eq_1
 
 class Simple3DVec(VMobject):
     def __init__(
@@ -416,7 +416,6 @@ class Lecture12(InteractiveScene):
 
         self.embed()
 
-
 class GasLeak(InteractiveScene):
     def construct(self):
         axes = MyThreedAxes(
@@ -441,85 +440,72 @@ class GasLeak(InteractiveScene):
         axes.toggle_planes()
         self.add(axes)
 
-        def gradient_eq(x, y):
-            return np.array([-x, -2*y, 0])
 
         s = axes.get_parametric_surface(
             lambda x, y: [x, y, gas_leek_eq(x, y)],
-            u_range=(-4, 4),
-            v_range=(-4, 4),
-            color=BLUE,
-            opacity=.4,
+            u_range=(-5, 5),
+            v_range=(-5, 5),
+            opacity=.3,
         )
 
-        self.add(s)
-        engineer_initil_pos = np.array([3, 2])
-        con_at_engineer_feet = gas_leek_eq(*engineer_initil_pos)
-        engineer = Dot().move_to(axes.c2p(*engineer_initil_pos, con_at_engineer_feet))
-        self.add(engineer)
-
-
-        def draw_gradient_at(x, y):
-            return Simple3DVec(
-                axes,
-                start=np.array([x, y, con_at_engineer_feet]),
-                end=gradient_eq(x, y) + np.array([0, 0, 0]),
+        x_lines = [
+            axes.get_parametric_curve(
+                lambda x: [x, yy*.25, gas_leek_eq(x, yy * .25)],
+                t_range=(-5, 5, 0.05),
+                color=YELLOW,
+                stroke_opacity=.5
+            ) for yy in range(-20, 20)
+        ]
+        y_lines = [
+            axes.get_parametric_curve(
+                lambda y: [xx * .25, y, gas_leek_eq(xx * .25, y)],
+                t_range=(-5, 5, 0.05),
                 color=GREEN,
-            )
+                stroke_opacity=.5,
+            ) for xx in range(-20, 20)
+        ]
 
-        gvec = draw_gradient_at(*engineer_initil_pos)
-        self.add(gvec)
-        level_contour = axes.render_contour((-6, 6), (-6, 6), con_at_engineer_feet, gas_leek_eq, 0.01)
-        self.add(level_contour)
+        self.add(s, *x_lines, *y_lines)
 
-
-        def counter_level_traversal_eq(t, l):
-            return np.array([np.sqrt(2 * (GAS_LEEK_SHIFT_UP_BY - l)) * np.cos(t), np.sqrt(GAS_LEEK_SHIFT_UP_BY - l) * np.sin(t), l])
-
-        start_t = np.arccos(engineer_initil_pos[0]/np.sqrt(2 * (GAS_LEEK_SHIFT_UP_BY - con_at_engineer_feet)))
-        end_t = start_t + TAU
-        c = axes.get_parametric_curve(
-            lambda t: counter_level_traversal_eq(t, con_at_engineer_feet),
-            t_range=(start_t, end_t, 0.05),
-            color=RED,
+        eng_plane_pos = ValueTracker(np.array([3, 2]))
+        eng_marker = always_redraw(
+            lambda: Dot().set_color(PINK).scale(.4).move_to(axes.c2p(*eng_plane_pos.get_value(), gas_leek_eq(*eng_plane_pos.get_value())))
         )
 
-        def get_traversal_vec(x, y):
-            t = np.arccos(x/np.sqrt(2 * (GAS_LEEK_SHIFT_UP_BY - con_at_engineer_feet)))
-            dr = np.array([-np.sqrt(2 * (GAS_LEEK_SHIFT_UP_BY - con_at_engineer_feet)) * np.sin(t), np.sqrt(GAS_LEEK_SHIFT_UP_BY - con_at_engineer_feet) * np.cos(t), 0])
-            v = Simple3DVec(
-                axes,
-                np.array([*engineer_initil_pos, con_at_engineer_feet]),
-                dr,
+        self.add(eng_marker)
+
+        gradient_vec = ValueTracker(np.array([-eng_plane_pos.get_value()[0], -2 * eng_plane_pos.get_value()[1]]))
+        gradient_vec_line = always_redraw(
+            lambda: Simple3DVec(
+                axes, [*eng_plane_pos.get_value(), gas_leek_eq(*eng_plane_pos.get_value())],
+                 np.array([*gradient_vec.get_value(), 0]), color=WHITE,
             )
-            return v
+        )
+        self.add(gradient_vec_line)
 
-        movement_vector = get_traversal_vec(*engineer_initil_pos)
-        self.add(movement_vector)
-        self.play(ShowCreation(c), run_time=3, rate_func=linear)
 
-        def get_direction_vector_at(x, y, dx, dy, color=ORANGE):
-            level = gas_leek_eq(x, y)
-            start = np.array([x, y, level])
-            end = np.array([dx, dy, 0])
-            return Simple3DVec(
-                axes,
-                start,
-                end/np.linalg.norm(end),
-                color=color,
-            )
+        s1 = axes.render_contour((-5, 5), (-5, 5), gas_leek_eq(*eng_plane_pos.get_value()), gas_leek_eq, 0.05, PURPLE)
+        self.add(s1)
 
-        direction_vector_value = ValueTracker(np.array([-3, -4]))
-        direction_vector = always_redraw(lambda: get_direction_vector_at(*engineer_initil_pos, *direction_vector_value.get_value()))
-        curve_along_direction = always_redraw(
+        s2 = axes.render_contour((-5, 5), (-5, 5), gas_leek_eq(*eng_plane_pos.get_value())+.4, gas_leek_eq, 0.05, PURPLE)
+        self.add(s2)
+
+
+        curve_along_gradient = always_redraw(
             lambda: axes.get_parametric_curve(
-                lambda t: [*((t * direction_vector_value.get_value()) + engineer_initil_pos), gas_leek_eq(*((t * direction_vector_value.get_value()) + engineer_initil_pos))],
-                t_range=(-4, 4, 0.05),
+                lambda t: [
+                        eng_plane_pos.get_value()[0] + t * gradient_vec.get_value()[0],
+                        eng_plane_pos.get_value()[1] + t * gradient_vec.get_value()[1],
+                        gas_leek_eq(
+                            eng_plane_pos.get_value()[0] + t * gradient_vec.get_value()[0],
+                            eng_plane_pos.get_value()[1] + t * gradient_vec.get_value()[1],
+                        )
+                        ],
+                t_range=(-4, 4, 0.1),
                 color=ORANGE,
             )
         )
-        self.add(direction_vector, curve_along_direction)
-
+        self.add(curve_along_gradient)
 
         self.embed()
 
@@ -547,73 +533,822 @@ class HeatedMetalPlate(InteractiveScene):
         axes.toggle_planes()
         self.add(axes)
 
-        def gradient_eq(x, y):
-            return np.array([y - METAL_STRETCH*2*x, x, 0])
+        s =  axes.get_parametric_surface(
+            lambda x, y: [x, y, heated_metal_plate_eq(x, y)],
+            u_range=(-4, 4),
+            v_range=(-4, 4),
+        )
+        self.add(s)
 
-        ## trying to understand surface xy - x**2
-        # def zx_eq(x, y):
-        #     return METAL_SHIFT_UP_BY + x * y - METAL_STRETCH * x**2
 
-        def get_zx_graph(y, color=ORANGE):
-            return axes.get_parametric_curve(
-                lambda x: [x, y, heated_metal_plate_eq(x, y)],
-                t_range=(-4+y, 2+4, 0.05),
-                color=color,
+        x_graph_at = lambda y, color: axes.get_parametric_curve(
+            lambda x: [x, y, heated_metal_plate_eq(x, y)],
+            t_range=(-4, 4, 0.05),
+            color=color,
+        )
+        y_graph_at = lambda x, color: axes.get_parametric_curve(
+            lambda y: [x, y, heated_metal_plate_eq(x, y)],
+            t_range=(-4, 4, 0.05),
+            color=color,
+        )
+
+        x_values = [y * .2 for y in range(-20, 20)]
+        y_values = [x * .2 for x in range(-20, 20)]
+
+        x_colors = color_gradient([BLUE, RED], len(y_values))
+        y_colors = color_gradient([YELLOW, ORANGE], len(y_values))
+
+        x_graphs = [x_graph_at(y, color) for y, color in zip(y_values, x_colors)]
+        y_graphs = [y_graph_at(x, color) for x, color in zip(x_values, y_colors)]
+        # self.add(*x_graphs, *y_graphs)
+        # self.frame.reorient(0, 90, 0)
+
+        robot_pos = ValueTracker(np.array([2, 3]))
+        robot_marker = always_redraw(
+            lambda: Dot().scale(1).set_color(RED).move_to(axes.c2p(*robot_pos.get_value(), heated_metal_plate_eq(*robot_pos.get_value())))
+        )
+        self.add(robot_marker)
+
+        lcs = [axes.render_contour((-5, 5), (-5, 5), heated_metal_plate_eq(*robot_pos.get_value() + buff * .2), heated_metal_plate_eq, 0.04) for buff in range(-4, 4)]
+        self.add(*lcs)
+
+        gvec = always_redraw(
+            lambda: Simple3DVec(
+                axes, np.array([*robot_pos.get_value(), heated_metal_plate_eq(*robot_pos.get_value())]), np.array([*heated_metal_plate_gradient_eq(*robot_pos.get_value()), 0])
             )
+        )
+
+        self.add(gvec)
+
+        hottest_direction = always_redraw(
+            lambda: Simple3DVec(
+                axes,
+                np.array([*robot_pos.get_value(), heated_metal_plate_eq(*robot_pos.get_value())]),
+                np.array([*heated_metal_plate_gradient_eq(*robot_pos.get_value()), 0])/np.linalg.norm(heated_metal_plate_gradient_eq(*robot_pos.get_value())),
+                color=PURPLE,
+            )
+        )
+
+        self.add(hottest_direction)
+
+        coldest_direction = always_redraw(
+            lambda: Simple3DVec(
+                axes,
+                np.array([*robot_pos.get_value(), heated_metal_plate_eq(*robot_pos.get_value())]),
+                -np.array([*heated_metal_plate_gradient_eq(*robot_pos.get_value()), 0])/np.linalg.norm(heated_metal_plate_gradient_eq(*robot_pos.get_value())),
+                color=ORANGE,
+            )
+        )
+
+        self.add(coldest_direction)
+
+        curve_at_gradient = always_redraw(
+            lambda: axes.get_parametric_curve(
+                lambda s: [robot_pos.get_value()[0] - s, robot_pos.get_value()[1] + 2 *s, heated_metal_plate_eq(robot_pos.get_value()[0] - s, robot_pos.get_value()[1] + 2 *s)],
+                t_range=(-4, 4, 0.05),
+                color=GREEN,
+            )
+        )
+
+        self.add(curve_at_gradient)
+
+
+        tangent_line = always_redraw(
+            lambda: axes.get_parametric_curve(
+                lambda s: [robot_pos.get_value()[0] - 2 * s, robot_pos.get_value()[1] - s, heated_metal_plate_eq(*robot_pos.get_value())],
+                t_range=(-4, 4, 0.05),
+                color=PINK,
+            )
+        )
+
+        self.add(tangent_line)
+        self.embed()
+
+
+
+class DroneInTemperatureField(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+        
+        drone_path_curve = axes.get_parametric_curve(
+            lambda t: [t, np.sin(t), t/2],
+            t_range=(-5, 10, 0.05),
+            color=TEAL,
+        )
+
+        drone_marker = always_redraw(lambda: Dot().set_color(ORANGE).move_to(drone_path_curve.get_end()))
+        self.add(drone_marker)
+
+        self.frame.reorient(50, 50, 0)
+
+
+        gradient_vec = always_redraw(
+            lambda: Simple3DVec(
+                axes,
+                drone_path_curve.get_end(),
+                drone_path_curve.get_end() + np.array([3, 2, -1]),
+                color=YELLOW,
+            )
+        )
+        self.wait(5)
+        self.add(gradient_vec)
+        self.play(ShowCreation(drone_path_curve), run_time=4, rate_func=linear)
+
+        self.embed()
+
+class ElectricPotential(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+
 
         s = axes.get_parametric_surface(
-            lambda x, y: [x, y, heated_metal_plate_eq(x, y)],
+            lambda x, y: [x, y, electric_potential_eq(x, y)],
             u_range=(-5, 5),
             v_range=(-5, 5),
-            color=TEAL,
+        )
+
+        self.add(s)
+
+        marker_x = 1
+        marker_y = 2
+        marker_pos = np.array([marker_x, marker_y])
+        marker = Dot().set_color(PURPLE).move_to(axes.c2p(*marker_pos, electric_potential_eq(*marker_pos)))
+        self.add(marker)
+
+        
+        gradient = np.array([
+            (marker_x**2 + marker_y**2 + 1)**(-3/2) * (-marker_x*ELECTRIC_FIELD_AT_0), (marker_x**2 + marker_y**2 + 1)**(-3/2) * (-marker_y*ELECTRIC_FIELD_AT_0)
+            ,0])
+
+        gradient_vec = Simple3DVec(
+            axes,
+            np.array([*marker_pos, electric_potential_eq(*marker_pos)]),
+            gradient,
+            color=WHITE,
+        )
+        gradient_vec_unit = Simple3DVec(
+            axes,
+            np.array([*marker_pos, electric_potential_eq(*marker_pos)]),
+            gradient/np.linalg.norm(gradient),
+            color=RED,
+        )
+
+        self.add(gradient_vec_unit, gradient_vec)
+
+        levels = [
+            axes.render_contour((-5, 5), (-5, 5), electric_potential_eq(*marker_pos) + 0.25 * buff,electric_potential_eq, 0.05) for buff in range(-4, 4)
+        ]
+
+        self.add(*levels)
+        self.embed()
+
+
+class MinMaxReview(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+
+
+        X_SCALER = .2
+        Y_SCALER = .4
+        eq = lambda x, y: (X_SCALER * x**2) - (Y_SCALER * y**2)
+
+        partial_x = lambda x, y: 2 * X_SCALER * x
+        partial_y = lambda x, y: - 2 * Y_SCALER * y
+
+        s = axes.get_parametric_surface(
+            lambda x, y: [x, y, eq(x, y)],
+            u_range=(-4, 4),
+            v_range=(-4, 4),
+            color=ORANGE,
+            opacity=.15,
+        )
+        self.add(s)
+
+        marker_pos = np.array([1, -1, eq(1, -1)])
+        marker = Dot().set_color(BLUE).move_to(axes.c2p(*marker_pos))
+
+        x_curve = axes.get_parametric_curve(
+            lambda x: [x, marker_pos[1], eq(x, marker_pos[1])],
+            t_range=(-4, 4, 0.05),
+            color=YELLOW,
+            stroke_opacity=.5,
+        )
+        x_tangent = axes.get_parametric_curve(
+            lambda x: [x, marker_pos[1], (x - marker_pos[0])*partial_x(*marker_pos[0:2]) + eq(*marker_pos[0:2])],
+            t_range=(marker_pos[0] - 1, marker_pos[0] + 1, 0.05),
+            color=YELLOW,
+        )
+
+        y_curve = axes.get_parametric_curve(
+            lambda y: [marker_pos[0], y, eq(marker_pos[1], y)],
+            t_range=(-4, 4, 0.05),
+            color=GREEN,
+            stroke_opacity=.5,
+        )
+        y_tangent = axes.get_parametric_curve(
+            lambda y: [marker_pos[0], y, (y - marker_pos[1]) * partial_y(*marker_pos[0:2]) + eq(*marker_pos[0:2])],
+            t_range=(marker_pos[1] - 1, marker_pos[1] + 1, 0.05),
+            color=GREEN,
+        )
+
+        self.add(x_curve, y_curve, x_tangent, y_tangent, marker)
+
+        fake_height_for_rendering = 0.01
+        tangent_plane = axes.get_parametric_surface(
+            lambda x, y: [x, y, eq(*marker_pos[0:2]) + partial_x(*marker_pos[0:2])*(x - marker_pos[0]) + partial_y(*marker_pos[0:2])*(y - marker_pos[1]) + fake_height_for_rendering],
+            u_range=(marker_pos[0] - 0.25, marker_pos[0] + .25),
+            v_range=(marker_pos[1] - .25, marker_pos[1] + .25),
+        )
+        self.add(tangent_plane)
+
+
+        self.embed()
+
+
+class LagrangeMultiplier(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+
+        def eq(x, y):
+            return 3 - (1/2) * x**2 - (1/4) * y**2
+
+
+        s = axes.get_parametric_surface(
+            lambda x, y: [x, y, eq(x, y)],
+            u_range=(-2, 2),
+            v_range=(-2, 2),
+            color=ORANGE,
             opacity=.3,
         )
         self.add(s)
 
-        zxs = [get_zx_graph(y * .5) for y in range(-10, 10)]
-        self.add(*zxs)
-        self.frame.reorient(0.0, 90.0, 0.0, (0, 0, 0))
 
-        target_point = np.array([2, 3])
-        target_pos = np.array([*target_point, heated_metal_plate_eq(*target_point)])
+        gx = lambda t: 2 * np.cos(t)
+        gy = lambda t: 2 * np.sin(t)
+
+        gc = axes.get_parametric_curve(
+            lambda t: [gx(t), gy(t), 0],
+            t_range=(0, TAU, 0.05),
+        )
+        self.add(gc)
+
+        c = axes.get_parametric_curve(
+            lambda t: [gx(t), gy(t), eq(gx(t), gy(t))],
+            t_range=(0, TAU, 0.05),
+            color=GREEN,
+        )
+        self.add(c)
 
 
-        contour = axes.render_contour((-5, 5), (-5, 5), target_pos[-1], heated_metal_plate_eq, step=0.05)
-        self.add(contour)
+        slider = ValueTracker(PI/4)
 
-        marker = Dot().scale(.5).set_color(GREEN).move_to(axes.c2p(*target_pos))
+        marker_pos = ValueTracker(np.array([gx(slider.get_value()), gy(slider.get_value()), eq(gx(slider.get_value()), gy(slider.get_value()))]))
+
+        marker = always_redraw(
+            lambda: Sphere().scale(.1).set_color(RED).move_to(axes.c2p(*marker_pos.get_value()))
+        )
+
         self.add(marker)
 
 
-        def get_gradient_vec(x, y, z):
-            direction = gradient_eq(x, y)
-            return Simple3DVec(
-                axes,
-                start=np.array([x, y, z]),
-                end=direction,
-                color=RED,
-            ), Simple3DVec(
-                axes,
-                start=np.array([x, y, z]),
-                end=direction/np.linalg.norm(direction),
-                color=MAROON,
-            ), Simple3DVec(
-                axes,
-                start=np.array([x, y, z]),
-                end=-direction/np.linalg.norm(-direction),
-                color=PURPLE,
-            )
-        gvec, hottest, coolest = get_gradient_vec(*target_pos)
-        self.add(gvec, hottest, coolest)
+class Climber(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
 
-        direction = gradient_eq(*target_point)
-        direction = direction/np.linalg.norm(direction)
-        nochange_dir = Simple3DVec(
-            axes,
-            start=target_pos,
-            end=np.array([direction[1], -direction[0], direction[2]]),
+        axes.toggle_planes()
+        self.add(axes)
+
+        def eq(x, y):
+            return  10 - x**2 - 2 * y**2
+
+        mounten = axes.get_parametric_surface(
+            lambda x, y: [x, y, eq(x, y)],
+            u_range=(-4, 4),
+            v_range=(-4, 4),
+            color=GREEN_D,
+            opacity=.4
+        )
+        self.add(mounten)
+
+
+        t_range=(0, 6, 0.05)
+        gx_eq = lambda t: t - 3
+        gy_eq = lambda t: 5 - t
+
+        gc = axes.get_parametric_curve(
+            lambda t: [gx_eq(t),gy_eq(t), 0],
+            t_range=t_range,
+            color=YELLOW,
+        )
+
+        self.add(gc)
+
+        trace = axes.get_parametric_curve(
+            lambda t: [gx_eq(t), gy_eq(t), eq(gx_eq(t), gy_eq(t))],
+            t_range=t_range,
             color=PINK,
         )
-        self.add(nochange_dir)
+        self.add(trace)
+
+
+
+        t = ValueTracker(0)
+        marker = always_redraw(
+            lambda: Line(
+                start=axes.c2p(gx_eq(t.get_value()), gy_eq(t.get_value()), 0),
+                end=axes.c2p(gx_eq(t.get_value()), gy_eq(t.get_value()), eq(gx_eq(t.get_value()), gy_eq(t.get_value()))),
+            )
+        )
+
+        self.add(marker)
+
+        def gradient_eq(t):
+            return np.array([-2 * gx_eq(t), -4 * gy_eq(t), 0])
+
+        gv = always_redraw(
+            lambda: Simple3DVec(
+                axes,
+                start=np.array([gx_eq(t.get_value()), gy_eq(t.get_value()), eq(gx_eq(t.get_value()), gy_eq(t.get_value()))]),
+                end=gradient_eq(t.get_value()),
+                color=RED,
+            )
+        )
+
+        def dir_gradient(t):
+            return np.array([1, 1, 0])
+
+
+        dir_gv = always_redraw(
+            lambda: Simple3DVec(
+                axes,
+                start=np.array([gx_eq(t.get_value()), gy_eq(t.get_value()), 0]),
+                end=dir_gradient(t.get_value()),
+                color=PURPLE,
+            )
+        )
+        self.add(dir_gv)
+
+        self.add(gv)
 
         self.embed()
+
+
+class Submarine(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+
+
+        s = axes.get_parametric_surface(
+            lambda x, y: [x, y, submaric_lagrange_eq(x, y)],
+            u_range=(-4, 4),
+            v_range=(-4, 4),
+            color=BLUE,
+            opacity=.4,
+        )
+        self.add(s)
+
+
+        self.c1_level = 2
+        self.axes = axes
+        self.c1 = axes.render_contour(
+            (-4, 4), (-4, 4), self.c1_level, submaric_lagrange_eq, 0.05
+        )
+        self.add(self.c1)
+
+
+        def gx_eq(t):
+            return 2 * np.cos(t)
+
+        def gy_eq(t):
+            return np.sin(t)
+
+        t_range=(0, TAU, 0.05)
+        gc = axes.get_parametric_curve(
+            lambda t: [gx_eq(t), gy_eq(t), 0],
+            t_range=t_range,
+            color=WHITE,
+        )
+        self.add(gc)
+
+        tc = axes.get_parametric_curve(
+            lambda t: [gx_eq(t), gy_eq(t), submaric_lagrange_eq(gx_eq(t), gy_eq(t))],
+            t_range=t_range,
+            color=RED,
+        )
+        self.add(tc)
+
+        t = ValueTracker(0)
+        height = always_redraw(
+            lambda: Line(
+                start=axes.c2p(*[gx_eq(t.get_value()), gy_eq(t.get_value()), 0]),
+                end=axes.c2p(*[gx_eq(t.get_value()), gy_eq(t.get_value()), submaric_lagrange_eq(gx_eq(t.get_value()), gy_eq(t.get_value()))]),
+                color=YELLOW,
+            )
+        )
+        self.add(height)
+
+        self.embed()
+
+    def on_key_press(self, symbol, modifiers):
+        key_pressed = ''
+        try:
+            key_pressed = chr(symbol)
+        except:
+            print("invalid key")
+            return
+
+        match key_pressed:
+            case 'w':
+                self.remove(self.c1)
+                self.c1_level += 0.2
+                self.c1 = self.axes.render_contour(
+                    (-4, 4), (-4, 4), self.c1_level, submaric_lagrange_eq, 0.05
+                )
+                self.add(self.c1)
+            case 's':
+                self.remove(self.c1)
+                self.c1_level -= 0.2
+                self.c1 = self.axes.render_contour(
+                    (-4, 4), (-4, 4), self.c1_level, submaric_lagrange_eq, 0.05
+                )
+                self.add(self.c1)
+            case _:
+                return
+
+
+
+class Lecture14(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+
+        self.level = 8
+        self.axes = axes
+        self.level_s = axes.render_level_surface(
+            lec14_eq, self.level, color=TEAL
+        ).set_opacity(.4)
+        self.add(self.level_s)
+        marker = Sphere().scale(.3).set_color(RED).move_to(axes.c2p(2, 3, 1))
+        self.add(marker)
+
+        self.embed()
+
+    def on_key_press(self, symbol, modifiers):
+        char = chr(symbol)
+        match char:
+            case 'w':
+                self.remove(self.level_s)
+                self.level += .2
+                self.level_s = self.axes.render_level_surface(
+                    lec14_eq, self.level,
+                ).set_opacity(.4).set_color(TEAL)
+                self.add(self.level_s)
+            case 's':
+                self.remove(self.level_s)
+                self.level -= .2
+                self.level_s = self.axes.render_level_surface(
+                    lec14_eq, self.level
+                ).set_opacity(.4).set_color(BLUE)
+                self.add(self.level_s)
+
+class SafestPoint(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+
+
+        A = (8)
+        B = (3)
+        C = (2)
+        D = (2)
+
+        def original_eq(x, y):
+            return 4 + (A)*x - (B)*x**2 - (C) * y**2 + (D) * x * y
+
+        s = axes.get_parametric_surface(
+            lambda x, y:[x, y, original_eq(x, y)],
+            color=TEAL,
+            opacity=.4,
+            u_range=(-4, 4),
+            v_range=(-4, 4),
+        )
+        self.add(s)
+
+        def get_zx(y, color):
+            return axes.get_parametric_curve(
+                lambda x: [x, y, original_eq(x, y)],
+                t_range=(-4, 4, 0.05),
+                color=color
+            )
+
+        y_range=(-4, 4)
+        step = 0.1
+        cs = []
+        current_y = y_range[0]
+
+        colors = color_gradient([BLUE, RED], int((y_range[1]-y_range[0])/step) + 1)
+
+        i = 0
+        while current_y <= y_range[1]:
+            cs.append(get_zx(current_y, color=colors[i]))
+            current_y += step
+            i += 1
+
+        self.add(*cs)
+
+        crt_point = np.array([8/5, 4/5])
+        crt = Dot().move_to(axes.c2p(*crt_point, original_eq(*crt_point))).set_color(WHITE)
+        self.add(crt)
+
+
+class MinMaxTest(InteractiveScene):
+    def construct(self):
+        axes = MyThreedAxes(
+                activeScene=self,
+                x_custom=True,
+                y_custom=True,
+                z_custom=True,
+                x_axis_config={
+                    'color':RED,
+                    'include_tip':True,
+                },
+                y_axis_config={
+                    'color':GREEN,
+                    'include_tip':True,
+                },
+                z_axis_config={
+                    'color':BLUE,
+                    'include_tip':True,
+                },
+        )
+
+        axes.toggle_planes()
+        self.add(axes)
+        
+
+
+        def eq(x, y):
+            return 2 + (1) * x + (1/2)*y
+
+        s = axes.get_parametric_surface(
+            lambda x, y:[x, y, eq(x,y)],
+            u_range=(-4, 4),
+            v_range=(-4, 4),
+            opacity=.3,
+            color=WHITE,
+        )
+        self.add(s)
+
+        pos = np.array([2, 1])
+        delta_x, delta_y = (.5, .5)
+
+        s1 = axes.get_parametric_surface(
+            lambda x, y:[x, y, eq(x,y)+0.05],
+            u_range=(pos[0]-delta_x, pos[0]+delta_x),
+            v_range=(pos[1]-delta_y, pos[1]+delta_y),
+            color=ORANGE,
+        )
+        d = Dot().move_to(axes.c2p(*pos, eq(*pos)))
+
+        self.add(s1, d)
+
+
+class Approximation2D(InteractiveScene):
+    def construct(self):
+        axes = Axes()
+        self.add(axes)
+
+
+        A = ValueTracker(1)
+        pos = ValueTracker(1)
+
+        def eq(x):
+            return A.get_value() * (x**2)
+
+
+        # act 1
+        c = always_redraw(lambda: axes.get_graph(
+            lambda x: eq(x),
+            x_range=(-4, 4, 0.05),
+            color=RED,
+        ))
+
+        marker = always_redraw(lambda: Dot().scale(.2).move_to(axes.c2p(pos.get_value(), eq(pos.get_value()))).set_color(WHITE))
+        marker_l = always_redraw(
+            lambda: VGroup().add(DashedLine(
+                start=axes.c2p(pos.get_value(), eq(pos.get_value())),
+                end=axes.c2p(pos.get_value(), 0),
+                color=WHITE,
+            )).add(
+                Tex("x0").scale(.2).move_to(axes.c2p(pos.get_value(), -0.1)).set_color(WHITE)
+            )
+        )
+
+        delta_x = .5
+        def ap0(x):
+            return eq(pos.get_value())
+
+        ap0_c = always_redraw(lambda: axes.get_graph(
+            lambda x: ap0(x),
+            x_range=(pos.get_value() - delta_x, pos.get_value()+delta_x, 0.05),
+            color=YELLOW,
+        ))
+
+
+        dx = ValueTracker(0.05)
+
+        diff_line = always_redraw(
+            lambda: Line(
+                start=axes.c2p(pos.get_value() + dx.get_value(), eq(pos.get_value()+dx.get_value())),
+                end=axes.c2p(pos.get_value() + dx.get_value(), ap0(pos.get_value()+dx.get_value())),
+                color=BLUE,
+            )
+        )
+
+        self.add(c)
+        self.add(ap0_c)
+        self.add(marker, marker_l, diff_line)
+
+
+        equations = VGroup()
+        equations.add(
+            Tex(R"""
+            y = f(x)
+            """).set_color(RED)
+            )
+        equations.add(Tex(r"g(x) \simeq f(x0)").set_color(YELLOW))
+        equations.add(
+            Tex(R"""
+            diff = f(x0 + dx) - g(x0 + dx)
+            """).set_color(BLUE)
+            )
+        equations.fix_in_frame()
+        equations.arrange(DOWN)
+
+        equations.to_edge(UL)
+        self.add(equations)
+
+        self.play(
+            self.frame.animate.reorient(0, 0, 0, (pos.get_value(), eq(pos.get_value()), 0), 1),
+            run_time=4
+        )
+
+        self.wait(2)
+        self.play(dx.animate.set_value(-0.2), run_time=2)
+        self.wait(2)
+        self.play(dx.animate.set_value(0.2), run_time=2)

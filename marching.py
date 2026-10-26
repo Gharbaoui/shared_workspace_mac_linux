@@ -1,3 +1,4 @@
+import numpy as np
 from concurrent.futures import ProcessPoolExecutor
 import os
 
@@ -136,3 +137,30 @@ METAL_SHIFT_UP_BY = 4
 METAL_STRETCH = 1 
 def heated_metal_plate_eq(x, y):
     return METAL_SHIFT_UP_BY + METAL_STRETCH * x*y - METAL_STRETCH * x**2
+
+def heated_metal_plate_gradient_eq(x, y):
+    return np.array([y - 2 * x, x])
+
+
+def review_dir_vec_eq(x, y, z):
+    return x**2 + y**2 - z**2
+
+ELECTRIC_FIELD_AT_0 = 5
+def electric_potential_eq(x, y):
+    return ELECTRIC_FIELD_AT_0/np.sqrt(x**2 + y**2 + 1)
+
+def submaric_lagrange_eq(x, y):
+    return 4 - x**2 - y**2
+
+
+def lec14_eq(x, y, z):
+    return x**2 + y*z + z**3
+
+def safest_point_eq(x, y):
+    return (4 + 8*x + 2 * x * y) - (3 * x**2 + 2 * y**2)
+
+def expr_eq(x, y):
+    return 4 - (3 * x**2 + 2 * y**2) + (8) * x + (0 * x * y)
+
+def expr_eq_1(x, y):
+    return 4 - (3 * x**2 + 2 * y**2) + (8) * x + (10 * x * y)
