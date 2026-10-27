@@ -1279,6 +1279,8 @@ class Approximation2D(InteractiveScene):
 
         def eq(x):
             return A.get_value() * (x**2)
+        def eq_1(x):
+            return 2 * A.get_value() * x
 
 
         # act 1
@@ -1303,27 +1305,45 @@ class Approximation2D(InteractiveScene):
         def ap0(x):
             return eq(pos.get_value())
 
+        def ap1(x):
+            x0 = pos.get_value()
+            return eq(x0) + eq_1(x0) * (x - x0)
+
         ap0_c = always_redraw(lambda: axes.get_graph(
             lambda x: ap0(x),
             x_range=(pos.get_value() - delta_x, pos.get_value()+delta_x, 0.05),
             color=YELLOW,
         ))
 
+        ap1_c = always_redraw(lambda: axes.get_graph(
+            lambda x: ap1(x),
+            x_range=(pos.get_value() - delta_x, pos.get_value()+delta_x, 0.05),
+            color=ORANGE,
+        ))
+
 
         dx = ValueTracker(0.05)
 
-        diff_line = always_redraw(
+        diff_0_buff = 0.005
+        diff_line_0 = always_redraw(
             lambda: Line(
-                start=axes.c2p(pos.get_value() + dx.get_value(), eq(pos.get_value()+dx.get_value())),
-                end=axes.c2p(pos.get_value() + dx.get_value(), ap0(pos.get_value()+dx.get_value())),
+                start=axes.c2p(diff_0_buff + pos.get_value() + dx.get_value(), eq(pos.get_value()+dx.get_value())),
+                end=axes.c2p(diff_0_buff + pos.get_value() + dx.get_value(), ap0(pos.get_value()+dx.get_value())),
                 color=BLUE,
             )
         )
 
-        self.add(c)
-        self.add(ap0_c)
-        self.add(marker, marker_l, diff_line)
+        diff_line_1 = always_redraw(
+            lambda: Line(
+                start=axes.c2p(pos.get_value() + dx.get_value(), eq(pos.get_value()+dx.get_value())),
+                end=axes.c2p(pos.get_value() + dx.get_value(), ap1(pos.get_value()+dx.get_value())),
+                color=GREY,
+            )
+        )
 
+        self.add(c)
+        self.add(ap0_c, ap1_c)
+        self.add(marker, marker_l, diff_line_0, diff_line_1)
 
         equations = VGroup()
         equations.add(
@@ -1331,16 +1351,23 @@ class Approximation2D(InteractiveScene):
             y = f(x)
             """).set_color(RED)
             )
-        equations.add(Tex(r"g(x) \simeq f(x0)").set_color(YELLOW))
+        equations.add(Tex(r"g0(x) \simeq f(x_0)").set_color(YELLOW))
+        equations.add(Tex(r"g1(x) \simeq f(x_0) + f'(x_0) * (x - x_0)").set_color(ORANGE))
         equations.add(
             Tex(R"""
-            diff = f(x0 + dx) - g(x0 + dx)
+            diff_0 = f(x_0 + dx) - g0(x_0 + dx)
             """).set_color(BLUE)
+            )
+        equations.add(
+            Tex(R"""
+            diff_1 = f(x_0 + dx) - g1(x_0 + dx)
+            """).set_color(GREY)
             )
         equations.fix_in_frame()
         equations.arrange(DOWN)
 
         equations.to_edge(UL)
+        equations.scale(.5)
         self.add(equations)
 
         self.play(
@@ -1352,3 +1379,11 @@ class Approximation2D(InteractiveScene):
         self.play(dx.animate.set_value(-0.2), run_time=2)
         self.wait(2)
         self.play(dx.animate.set_value(0.2), run_time=2)
+        self.wait(1)
+
+        self.play(
+            self.frame.animate.reorient(
+                0, 0, 0,
+                (pos.get_value() + dx.get_value(), ap1(pos.get_value() + dx.get_value()), 0), 0.1),
+            run_time=4,
+        )
