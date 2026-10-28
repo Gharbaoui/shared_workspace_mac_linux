@@ -1281,6 +1281,8 @@ class Approximation2D(InteractiveScene):
             return A.get_value() * (x**2)
         def eq_1(x):
             return 2 * A.get_value() * x
+        def eq_2(x):
+            return 2 * A.get_value()
 
 
         # act 1
@@ -1309,6 +1311,10 @@ class Approximation2D(InteractiveScene):
             x0 = pos.get_value()
             return eq(x0) + eq_1(x0) * (x - x0)
 
+        def ap2(x):
+            x0 = pos.get_value()
+            return eq(x0) + eq_1(x0) * (x - x0) + eq_2(x0) * (((x-x0)**2)/2)
+
         ap0_c = always_redraw(lambda: axes.get_graph(
             lambda x: ap0(x),
             x_range=(pos.get_value() - delta_x, pos.get_value()+delta_x, 0.05),
@@ -1321,6 +1327,17 @@ class Approximation2D(InteractiveScene):
             color=ORANGE,
         ))
 
+        ap2_c = axes.get_graph(
+            lambda x: ap2(x),
+            x_range=(pos.get_value() - delta_x, pos.get_value()+delta_x, 0.5),
+            color=PURPLE,
+        )
+
+        ap2_c_far = axes.get_graph(
+            lambda x: ap2(x),
+            x_range=(-1, 4, 0.5),
+            color=PURPLE,
+        )
 
         dx = ValueTracker(0.05)
 
@@ -1342,7 +1359,7 @@ class Approximation2D(InteractiveScene):
         )
 
         self.add(c)
-        self.add(ap0_c, ap1_c)
+        self.add(ap0_c, ap1_c, ap2_c)
         self.add(marker, marker_l, diff_line_0, diff_line_1)
 
         equations = VGroup()
@@ -1353,6 +1370,7 @@ class Approximation2D(InteractiveScene):
             )
         equations.add(Tex(r"g0(x) \simeq f(x_0)").set_color(YELLOW))
         equations.add(Tex(r"g1(x) \simeq f(x_0) + f'(x_0) * (x - x_0)").set_color(ORANGE))
+        equations.add(Tex(r"g2(x) \simeq f(x_0) + f'(x_0) * (x - x_0) + \frac{(x - x_0)^2}{2} * f''(x_0)").set_color(PURPLE))
         equations.add(
             Tex(R"""
             diff_0 = f(x_0 + dx) - g0(x_0 + dx)
@@ -1366,10 +1384,12 @@ class Approximation2D(InteractiveScene):
         equations.fix_in_frame()
         equations.arrange(DOWN)
 
-        equations.to_edge(UL)
         equations.scale(.5)
+        equations.to_edge(UL)
         self.add(equations)
 
+        self.wait(2)
+        self.play(Indicate(ap2_c))
         self.play(
             self.frame.animate.reorient(0, 0, 0, (pos.get_value(), eq(pos.get_value()), 0), 1),
             run_time=4
@@ -1387,3 +1407,7 @@ class Approximation2D(InteractiveScene):
                 (pos.get_value() + dx.get_value(), ap1(pos.get_value() + dx.get_value()), 0), 0.1),
             run_time=4,
         )
+
+        self.wait(2)
+        self.play(self.frame.animate.reorient(0, 0, 0, (0, 1.5, 0), 4))
+        self.play(Transform(ap2_c, ap2_c_far), run_time=3)
