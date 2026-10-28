@@ -1275,14 +1275,17 @@ class Approximation2D(InteractiveScene):
 
 
         A = ValueTracker(1)
-        pos = ValueTracker(1)
+        pos = ValueTracker(.5)
 
         def eq(x):
-            return A.get_value() * (x**2)
+            # return A.get_value() * (x**2)
+            return np.sin(x) * np.e**x
         def eq_1(x):
-            return 2 * A.get_value() * x
+            # return 2 * A.get_value() * x
+            return np.cos(x) * np.e**x + np.sin(x) * np.e**x
         def eq_2(x):
-            return 2 * A.get_value()
+            # return 2 * A.get_value()
+            return np.cos(x)*np.e**x
 
 
         # act 1
@@ -1404,10 +1407,10 @@ class Approximation2D(InteractiveScene):
         self.play(
             self.frame.animate.reorient(
                 0, 0, 0,
-                (pos.get_value() + dx.get_value(), ap1(pos.get_value() + dx.get_value()), 0), 0.1),
+                (pos.get_value() + dx.get_value(), ap1(pos.get_value() + dx.get_value()), 0), 0.4),
             run_time=4,
         )
 
         self.wait(2)
-        self.play(self.frame.animate.reorient(0, 0, 0, (0, 1.5, 0), 4))
+        self.play(self.frame.animate.reorient(0, 0, 0, (0, 5, 0), 12))
         self.play(Transform(ap2_c, ap2_c_far), run_time=3)
